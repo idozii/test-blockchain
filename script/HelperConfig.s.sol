@@ -6,16 +6,16 @@ import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/tests/MockV3Aggreg
 import {Constant} from "./Constant.sol";
 
 contract HelperConfig is Constant, Script {
-
+error HelperConfig__InvalidChainID();
      struct NetWorkConfig {
           address ethUSDPriceFeed;
      }
 
+     NetWorkConfig public localNetWorkConfig;
      mapping(uint256 chainID => NetWorkConfig) public s_networkConfig;
      
      constructor() {
           s_networkConfig[sepoliaID] = getSepoliaNetWorkConfig();
-          s_networkConfig[anvilID] = getAnvilNetWorkConfig();
      }
 
      function getSepoliaNetWorkConfig() public pure returns(NetWorkConfig memory) {
@@ -25,13 +25,22 @@ contract HelperConfig is Constant, Script {
      }
 
      function getAnvilNetWorkConfig() public returns(NetWorkConfig memory) {
+          vm.startBroadcast();
           MockV3Aggregator mockV3Aggregator = new MockV3Aggregator(DECIMALS, PRICE);
-          return NetWorkConfig({
+          vm.stopBroadcast();
+          localNetWorkConfig = NetWorkConfig({
                ethUSDPriceFeed: address(mockV3Aggregator)
           });
+          return localNetWorkConfig;
      }
 
-     function getNetWorkConfig(uint256 chainID) public view returns(NetWorkConfig memory) {
-          return s_networkConfig[chainID];
+     function getNetWorkConfig(uint256 chainID) public returns(NetWorkConfig memory) {
+          if(s_networkConfig[chainID].ethUSDPriceFeed != address(0)) {
+               return s_networkConfig[chainID];
+          } else if (chainID == anvilID) {
+               return getAnvilNetWorkConfig();     
+          } else {
+               revert HelperConfig__InvalidChainID();
+          }
      }
 }
