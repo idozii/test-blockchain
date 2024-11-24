@@ -3,7 +3,8 @@ pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {CrowdFunding} from "../src/CrowdFunding.sol";
-import {MockV3Aggregator} from "@chainlink/contracts/src/v0.8/tests/MockV3Aggregator.sol";
+import {DeployCrowdFunding} from "../script/DeployCrowdFunding.s.sol"; 
+import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 
 contract CrowdFundingTest is Test {
     CrowdFunding public crowdFunding;
@@ -12,23 +13,22 @@ contract CrowdFundingTest is Test {
     address public constant OWNER = address(1);
     uint256 public constant INITIAL_BALANCE = 100 ether;
     uint256 public constant AMOUNT_TO_FUND = 5 ether;
-    uint8 public constant DECIMALS = 8;
-    int256 public constant PRICE = 3000e8;
 
     event Funded(address indexed funder, uint256 value);
+    event Withdrawn(uint256 value);
 
     function setUp() external {
-        MockV3Aggregator mockV3Aggregator = new MockV3Aggregator(DECIMALS, PRICE);
-        ethPriceFeed = address(mockV3Aggregator);
-        crowdFunding = new CrowdFunding(ethPriceFeed);
+        DeployCrowdFunding deployCrowdFunding = new DeployCrowdFunding();
+        (crowdFunding, ) = deployCrowdFunding.run();
         vm.deal(OWNER, INITIAL_BALANCE);
     }
 
-    function test_getETHUSDPrice() public view {
-        uint256 price = crowdFunding.getETHUSdPrice();
-        assertEq(price, uint256(PRICE) * 1e10);
+    modifier funded () {
+        vm.prank(OWNER);
+        crowdFunding.fund{value: AMOUNT_TO_FUND}();
+        _;
     }
-    
+
     function test_revert_fund() public {
         vm.expectRevert("no available amount");
         vm.prank(OWNER);
@@ -53,5 +53,29 @@ contract CrowdFundingTest is Test {
         assertTrue(crowdFunding.s_isFunders(OWNER));
         assertEq(crowdFunding.s_funders(0), OWNER);
         assertEq(crowdFunding.getFundersLength(), 1);
+    }
+
+    function test_revert_withdraw() public {
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, OWNER));
+        vm.prank(OWNER);
+        crowdFunding.withdraw();
+    }
+    
+    function test_can_withdraw() public funded {
+        address owner = crowdFunding.owner();
+
+        uint256 BeforeOwnerBalance = owner.balance;
+        uint256 BeforeContractBalance = address(crowdFunding).balance;
+
+        vm.expectEmit();
+        emit CrowdFunding.Withdrawn(BeforeContractBalance);
+        vm.prank(owner);
+        crowdFunding.withdraw();
+
+        uint256 AfterOwnerBalance = owner.balance;
+        uint256 AfterContractBalance = address(crowdFunding).balance;
+
+        assertEq(BeforeContractBalance + BeforeOwnerBalance, AfterOwnerBalance);
+        assertEq(AfterContractBalance, 0);
     }
 }

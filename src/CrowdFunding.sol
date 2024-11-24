@@ -2,13 +2,15 @@
 pragma solidity ^0.8.26;
 
 import {PriceConverter} from "./lib/PriceConverter.sol";
-contract CrowdFunding {
+import {AggregatorV3Interface} from "../lib/chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
+import {Ownable} from "openzeppelin-contracts/contracts/access/Ownable.sol";
+
+contract CrowdFunding is Ownable {
     using PriceConverter for address;
 
     error NoAvailableAmount();
 
-    uint256 public constant MINIMUM_USD = 5e18; // 5 USD in Wei
-    address public immutable i_owner;
+    uint256 public constant MINIMUM_USD = 5e18; 
     address public immutable i_priceFeed;
 
     mapping(address => bool) public s_isFunders;
@@ -26,16 +28,8 @@ contract CrowdFunding {
         fund();
     }
 
-    constructor(address _priceFeed) {
-        i_owner = msg.sender;
+    constructor(address _priceFeed) Ownable(msg.sender) {
         i_priceFeed = _priceFeed;
-    }
-
-    modifier onlyOwner() {
-        if (i_owner != msg.sender) {
-            revert NoAvailableAmount();
-        }
-        _;
     }
 
     function fund() public payable {
@@ -53,10 +47,11 @@ contract CrowdFunding {
     }
 
     function withdraw() public onlyOwner {
-        (bool sent,) = payable(i_owner).call{value: address(this).balance}("");
+        uint256 balance = address(this).balance;
+        (bool sent,) = payable(owner()).call{value: address(this).balance}("");
         require(sent, "Failed to send Ether");
 
-        emit Withdrawn(address(this).balance);
+        emit Withdrawn(balance);
     }
 
     function getFundersLength() public view returns (uint256) {
