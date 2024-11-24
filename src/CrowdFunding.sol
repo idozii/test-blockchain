@@ -57,8 +57,4 @@ contract CrowdFunding is Ownable {
     function getFundersLength() public view returns (uint256) {
         return s_funders.length;
     }
-
-    function getETHUSdPrice() public view returns (uint256) {
-        return i_priceFeed.getPrice();
-    }
 }
