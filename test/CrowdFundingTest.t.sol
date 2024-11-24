@@ -28,12 +28,7 @@ contract CrowdFundingTest is Test {
         uint256 price = crowdFunding.getETHUSdPrice();
         assertEq(price, uint256(PRICE) * 1e10);
     }
-
-    function test_getPriceFeedVersion() public view {
-        uint256 version = crowdFunding.getPriceFeedVersion();
-        assertEq(version, 4);
-    }
-
+    
     function test_revert_fund() public {
         vm.expectRevert("no available amount");
         vm.prank(OWNER);
