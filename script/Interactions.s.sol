@@ -8,7 +8,7 @@ import {CrowdFunding} from "../src/CrowdFunding.sol";
 contract FundCrowdFunding is Script {
      function fundToCrowdfunding(address crowdFunding) public {
           vm.startBroadcast();
-          CrowdFunding(payable(crowdFunding)).fund{value: 0.1 ether}();
+          CrowdFunding(payable(crowdFunding)).fund{value: 0.01 ether}();
           vm.stopBroadcast();
 
           console.log("Funded to CrowdFunding");
